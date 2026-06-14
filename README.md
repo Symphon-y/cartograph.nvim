@@ -10,12 +10,13 @@ highlighted. Clicking a node jumps your editor to that symbol.
 The v1 stack is **Vue (TS/JS) ↔ .NET (C#)**, built on a pluggable adapter
 architecture so other stacks can be added later.
 
-> **Status: early.** Phases 0–2 are in place: the scaffold, the engine with
-> in-language drill-down, and the **interactive browser UI** (a `vim.uv` HTTP +
-> Server-Sent Events bridge serving a vendored, offline Cytoscape.js graph).
-> Click a node to expand the next hop and jump your editor to it. The
-> cross-stack Vue↔.NET HTTP bridge and compare are next — see
-> [`CARTOGRAPH_PLAN.md`](CARTOGRAPH_PLAN.md) for the full roadmap.
+> **Status: early.** Phases 0–3 are in place: the scaffold, the engine with
+> in-language drill-down, the **interactive browser UI** (a `vim.uv` HTTP +
+> Server-Sent Events bridge serving a vendored, offline Cytoscape.js graph), and
+> the **cross-stack Vue↔.NET HTTP bridge** that links frontend request
+> call-sites to backend routes. Click a node to expand the next hop and jump
+> your editor to it; map from an endpoint with `:CartographEndpoint`. Compare is
+> next — see [`CARTOGRAPH_PLAN.md`](CARTOGRAPH_PLAN.md) for the full roadmap.
 
 ## How it works
 
@@ -64,6 +65,7 @@ The plugin registers its commands automatically via `plugin/cartograph.lua`. A
 |---|---|
 | `:Cartograph` | Open the map view (`:Cartograph!` to close) |
 | `:CartographFromCursor` | Seed a map from the symbol under the cursor |
+| `:CartographEndpoint GET /api/x` | Seed a map from an HTTP endpoint (cross-stack) |
 | `:CartographCompare` | Compare two code paths *(phase 4)* |
 | `:CartographSave <name>` | Save the active map |
 | `:CartographLoad <name>` | Load a saved map |
@@ -109,7 +111,9 @@ See [`CARTOGRAPH_PLAN.md`](CARTOGRAPH_PLAN.md) for the full design and roadmap.
 make test   # runs the pure-Lua specs headlessly (clones plenary on first run)
 ```
 
-The pure modules (`graph`, `http_wire`, `sse`, `protocol`, the LSP→graph
-converter) are unit-tested; `tests/integration_server.lua` is a headless driver
-that boots the real `vim.uv` server so the transport can be exercised with
-`curl`.
+The pure modules (`graph`, `http_wire`, `sse`, `protocol`, `route`, the .NET/Vue
+adapters, the LSP→graph converter) are unit-tested; `tests/bridge_spec.lua`
+scans the minimal Vue + .NET workspace under `tests/fixtures/` to validate the
+cross-stack bridge end-to-end, and `tests/integration_server.lua` is a headless
+driver that boots the real `vim.uv` server so the transport can be exercised
+with `curl`.

@@ -168,6 +168,17 @@
     es.addEventListener('graph:update', function (e) {
       merge(JSON.parse(e.data));
     });
+    es.addEventListener('choices', function (e) {
+      try {
+        var d = JSON.parse(e.data);
+        var labels = (d.candidates || []).map(function (c) {
+          return c.method + ' /' + c.path + (c.action ? ' (' + c.action + ')' : '');
+        });
+        setStatus('ambiguous "' + d.query + '": ' + labels.join('  |  '));
+      } catch (_) {
+        /* ignore */
+      }
+    });
     es.addEventListener('status', function (e) {
       try {
         var d = JSON.parse(e.data);

@@ -15,6 +15,10 @@ vim.api.nvim_create_user_command('CartographFromCursor', function()
   require('cartograph').from_cursor()
 end, { desc = 'Map from the symbol under the cursor' })
 
+vim.api.nvim_create_user_command('CartographEndpoint', function(opts)
+  require('cartograph').from_endpoint(opts.args)
+end, { nargs = 1, desc = 'Map from an HTTP endpoint, e.g. :CartographEndpoint GET /api/x' })
+
 vim.api.nvim_create_user_command('CartographCompare', function()
   require('cartograph').compare()
 end, { desc = 'Compare two code paths side by side' })

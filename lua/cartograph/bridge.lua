@@ -28,11 +28,37 @@ function M.engine(holder)
     end
   end
 
+  -- Summarize ranked endpoint candidates for the browser's ambiguity pick-list.
+  local function candidate_list(ranked)
+    local out = {}
+    for _, c in ipairs(ranked) do
+      local e = c.route._src
+      out[#out + 1] = { method = e.method, path = e.norm.str, action = e.action, file = e.file }
+    end
+    return out
+  end
+
   return {
-    -- Browser-initiated root by query. Workspace search lands with the index +
-    -- adapters in phase 3; for now drive roots from nvim (:CartographFromCursor).
+    -- Browser-initiated root by query (e.g. an endpoint like "GET /api/x"):
+    -- match it against the workspace index and seed the map from that endpoint.
     set_root = function(query)
-      status('setRoot by query arrives in phase 3: ' .. tostring(query))
+      local index = require('cartograph.index')
+      local http = require('cartograph.resolver.http')
+      local g, root, info = http.from_endpoint(index.get(), query)
+      if not root then
+        return status('no endpoint matches: ' .. tostring(query))
+      end
+      if not state.active() then
+        return
+      end
+      state.session.graph:merge(g)
+      state.session.root = root.id
+      state.session.expanded[root.id] = true
+      push_graph()
+      if info.ambiguous and holder.server then
+        holder.server:broadcast('choices', { query = query, candidates = candidate_list(info.candidates) })
+      end
+      status('rooted at ' .. root.name)
     end,
 
     expand = function(node_id)

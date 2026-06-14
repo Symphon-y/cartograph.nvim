@@ -24,6 +24,45 @@ function M.setup(opts)
       M.compare()
     end, { desc = 'Cartograph: compare two paths' })
   end
+
+  -- Keep the cross-stack route/call index warm: refresh a file's entries when
+  -- it is written (no-op until the index has been built once).
+  vim.api.nvim_create_autocmd('BufWritePost', {
+    group = vim.api.nvim_create_augroup('CartographIndex', { clear = true }),
+    pattern = { '*.cs', '*.ts', '*.js', '*.vue' },
+    callback = function(args)
+      require('cartograph.index').refresh(args.file)
+    end,
+  })
+end
+
+-- Seed a map from an HTTP endpoint matched by `query` (e.g. "GET /api/x").
+-- Drives the same cross-stack bridge the browser's setRoot uses.
+function M.from_endpoint(query)
+  if not query or query == '' then
+    vim.notify('cartograph: from_endpoint requires a query', vim.log.levels.WARN)
+    return
+  end
+  if not state.active() then
+    M.open()
+  end
+  local index = require('cartograph.index')
+  local http = require('cartograph.resolver.http')
+  local g, root, info = http.from_endpoint(index.get(), query)
+  if not root then
+    vim.notify('cartograph: no endpoint matches ' .. query, vim.log.levels.WARN)
+    return
+  end
+  state.session.graph:merge(g)
+  state.session.root = root.id
+  state.session.expanded[root.id] = true
+  if state.session.server then
+    state.session.server:broadcast('graph:update', state.session.graph:serialize())
+  end
+  vim.notify(
+    ('cartograph: rooted at %s%s'):format(root.name, info.ambiguous and ' (ambiguous — see choices)' or ''),
+    vim.log.levels.INFO
+  )
 end
 
 -- Open (or focus) the interactive map view: start the local bridge server and

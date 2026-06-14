@@ -25,11 +25,12 @@ that symbol.
 The v1 stack is Vue (TS/JS) <-> .NET (C#), built on a pluggable adapter
 architecture so other stacks can be added later.
 
-Status: early. Phases 0-2 are in place: scaffold, engine with in-language
-drill-down, and the interactive browser UI (a vim.uv HTTP + Server-Sent Events
-bridge serving a vendored, offline Cytoscape.js graph). Click a node to expand
-the next hop and jump your editor to it. See CARTOGRAPH_PLAN.md for the
-roadmap.
+Status: early. Phases 0-3 are in place: scaffold, engine with in-language
+drill-down, the interactive browser UI (a vim.uv HTTP + Server-Sent Events
+bridge serving a vendored, offline Cytoscape.js graph), and the cross-stack
+Vue<->.NET HTTP bridge linking frontend request call-sites to backend routes.
+Click a node to expand the next hop and jump your editor to it; map from an
+endpoint with :CartographEndpoint. See CARTOGRAPH_PLAN.md for the roadmap.
 
 ==============================================================================
 2. REQUIREMENTS                                       *cartograph-requirements*
@@ -61,6 +62,12 @@ override defaults or bind the trigger keymaps.
                                                         *:CartographFromCursor*
 :CartographFromCursor   Seed a map from the symbol under the cursor and drill
                         its first in-language hop.
+
+                                                          *:CartographEndpoint*
+:CartographEndpoint {q} Seed a map from an HTTP endpoint matched by {q}, e.g.
+                        :CartographEndpoint GET /api/validation/validate. Uses
+                        the cross-stack bridge to attach the frontend request
+                        call-sites that route to it.
 
                                                           *:CartographCompare*
 :CartographCompare      Compare two code paths side by side. (phase 4)
