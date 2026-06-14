@@ -10,10 +10,27 @@ highlighted. Clicking a node jumps your editor to that symbol.
 The v1 stack is **Vue (TS/JS) ↔ .NET (C#)**, built on a pluggable adapter
 architecture so other stacks can be added later.
 
-> **Status: early.** Phase 0 (scaffold) and the start of phase 1 (engine +
-> in-language drill-down) are in place. The interactive browser UI, the
-> cross-stack HTTP bridge, and compare are on the way — see
+> **Status: early.** Phases 0–2 are in place: the scaffold, the engine with
+> in-language drill-down, and the **interactive browser UI** (a `vim.uv` HTTP +
+> Server-Sent Events bridge serving a vendored, offline Cytoscape.js graph).
+> Click a node to expand the next hop and jump your editor to it. The
+> cross-stack Vue↔.NET HTTP bridge and compare are next — see
 > [`CARTOGRAPH_PLAN.md`](CARTOGRAPH_PLAN.md) for the full roadmap.
+
+## How it works
+
+```
+Neovim (engine)                         Browser (Cytoscape.js)
+───────────────                         ──────────────────────
+:CartographFromCursor ── resolve ──►  graph model
+        │                                   │
+        │   vim.uv HTTP server              │  GET /            UI shell
+        │   bound to 127.0.0.1:<port>  ◄────┤  GET /events      SSE stream
+        │   + per-session URL token         │  POST /api/message expand / reveal
+        │                                   ▼
+        └────────── SSE: graph:update ────► render & grow the graph
+                                            click node ─► expand + reveal-in-editor
+```
 
 ## Requirements
 
@@ -89,5 +106,10 @@ See [`CARTOGRAPH_PLAN.md`](CARTOGRAPH_PLAN.md) for the full design and roadmap.
 ## Development
 
 ```sh
-make test   # runs the pure-Lua engine specs headlessly (clones plenary on first run)
+make test   # runs the pure-Lua specs headlessly (clones plenary on first run)
 ```
+
+The pure modules (`graph`, `http_wire`, `sse`, `protocol`, the LSP→graph
+converter) are unit-tested; `tests/integration_server.lua` is a headless driver
+that boots the real `vim.uv` server so the transport can be exercised with
+`curl`.

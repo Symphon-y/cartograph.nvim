@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>cartograph</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header id="toolbar">
+      <span class="brand">cartograph</span>
+      <input id="search" type="search" placeholder="Search nodes…" autocomplete="off" />
+      <button id="fit" title="Fit graph to view">Fit</button>
+      <button id="relayout" title="Re-run layout">Layout</button>
+      <span id="status" class="status" aria-live="polite"></span>
+    </header>
+    <main id="cy"></main>
+    <footer id="legend"></footer>
+
+    <script src="/vendor/cytoscape.min.js"></script>
+    <script src="/vendor/dagre.min.js"></script>
+    <script src="/vendor/cytoscape-dagre.min.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>

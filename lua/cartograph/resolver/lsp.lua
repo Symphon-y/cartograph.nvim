@@ -114,10 +114,73 @@ function M.from_cursor(on_done)
   end)
 end
 
--- Expand `node` by one hop using references/callHierarchy. Stub for phase 1+;
--- returns an empty graph today so callers can already wire the shape.
+-- Pure: convert LSP CallHierarchyOutgoingCall[] into a graph of `calls` edges
+-- hanging off `from_id`. Extracted so the LSP-shape -> graph mapping is testable
+-- without a live language server.
+function M.outgoing_to_graph(from_id, items, lang)
+  local g = graph_mod.new()
+  for _, call in ipairs(items or {}) do
+    local to = call.to
+    if to then
+      local file = to.uri and vim.uri_to_fname(to.uri) or ''
+      local range = to.selectionRange or to.range
+      local id = location_id(file, range)
+      g:add_node({
+        id = id,
+        kind = node_kind_for(to.kind),
+        name = to.name,
+        file = file,
+        range = range,
+        lang = lang,
+        meta = { source = 'lsp.outgoing' },
+      })
+      g:add_edge({ from = from_id, to = id, kind = 'calls' })
+    end
+  end
+  return g
+end
+
+-- Find an attached client supporting a given server capability.
+local function client_with(bufnr, capability)
+  local clients = vim.lsp.get_clients and vim.lsp.get_clients({ bufnr = bufnr })
+    or vim.lsp.get_active_clients({ bufnr = bufnr })
+  for _, client in ipairs(clients) do
+    if client.server_capabilities and client.server_capabilities[capability] then
+      return client
+    end
+  end
+  return nil
+end
+
+-- Expand `node` by one in-language hop (outgoing calls). Calls
+-- `on_done(graph)`; degrades to the Treesitter resolver when call hierarchy is
+-- unavailable.
 function M.expand(node, on_done)
-  on_done(graph_mod.new())
+  if not node.file or node.file == '' or not node.range then
+    return on_done(graph_mod.new())
+  end
+
+  local bufnr = vim.fn.bufadd(node.file)
+  vim.fn.bufload(bufnr)
+
+  local client = client_with(bufnr, 'callHierarchyProvider')
+  if not client then
+    return require('cartograph.resolver.treesitter').expand(node, on_done)
+  end
+
+  local params = {
+    textDocument = { uri = vim.uri_from_fname(node.file) },
+    position = node.range.start,
+  }
+  client.request('textDocument/prepareCallHierarchy', params, function(_, items)
+    local item = items and items[1]
+    if not item then
+      return on_done(graph_mod.new())
+    end
+    client.request('callHierarchy/outgoingCalls', { item = item }, function(_, outgoing)
+      on_done(M.outgoing_to_graph(node.id, outgoing, node.lang))
+    end, bufnr)
+  end, bufnr)
 end
 
 return M

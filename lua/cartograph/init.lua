@@ -26,19 +26,46 @@ function M.setup(opts)
   end
 end
 
--- Open (or focus) the map view. The interactive browser UI arrives in phase 2;
--- for now this ensures a session exists so the engine has somewhere to build.
+-- Open (or focus) the interactive map view: start the local bridge server and
+-- open the browser at its tokenized URL. Idempotent — a second call just
+-- re-opens the browser at the running server.
 function M.open()
   if not state.active() then
     state.new()
   end
-  -- TODO(phase 2): start the bridge server and open the browser.
-  vim.notify('cartograph: session ready (browser UI lands in phase 2)', vim.log.levels.INFO)
+
+  local session = state.session
+  if not session.server then
+    local server_opts = config.options.server
+    local holder = {}
+    local engine = require('cartograph.bridge').engine(holder)
+    local server = require('cartograph.server').start({
+      host = server_opts.host,
+      port = server_opts.port,
+      token = server_opts.token,
+      engine = engine,
+    })
+    holder.server = server
+    session.server = server
+  end
+
+  -- Push whatever we already have so a freshly opened browser isn't blank.
+  session.server:broadcast('graph:update', session.graph:serialize())
+
+  local url = session.server:url('/')
+  url = url .. (url:find('?', 1, true) and '&' or '?') .. 'theme=' .. config.options.view.theme
+  if config.options.server.auto_open then
+    require('cartograph.browser').open(url)
+  end
+  vim.notify('cartograph: serving map at ' .. url, vim.log.levels.INFO)
+  return url
 end
 
 function M.close()
   if state.active() then
-    -- TODO(phase 2): stop the bridge server.
+    if state.session.server then
+      state.session.server:stop()
+    end
     state.clear()
   end
 end
@@ -77,7 +104,9 @@ function M.from_cursor()
       ),
       vim.log.levels.INFO
     )
-    -- TODO(phase 2): push graph:update over SSE to the browser.
+    if state.session.server then
+      state.session.server:broadcast('graph:update', g:serialize())
+    end
   end)
 end
 
