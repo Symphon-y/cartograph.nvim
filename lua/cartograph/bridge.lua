@@ -80,8 +80,10 @@ function M.engine(holder)
       require('cartograph.reveal').reveal(node_id)
     end,
 
-    compare = function(_, _)
-      status('compare arrives in phase 4')
+    -- The browser's compare(rootA, rootB) routes to the one implementation in
+    -- init, which builds, diffs and pushes the overlay.
+    compare = function(seed_a, seed_b)
+      require('cartograph').compare(seed_a, seed_b)
     end,
 
     save = function(name)

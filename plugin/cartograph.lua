@@ -19,9 +19,14 @@ vim.api.nvim_create_user_command('CartographEndpoint', function(opts)
   require('cartograph').from_endpoint(opts.args)
 end, { nargs = 1, desc = 'Map from an HTTP endpoint, e.g. :CartographEndpoint GET /api/x' })
 
-vim.api.nvim_create_user_command('CartographCompare', function()
-  require('cartograph').compare()
-end, { desc = 'Compare two code paths side by side' })
+vim.api.nvim_create_user_command('CartographCompare', function(opts)
+  local a, b = opts.args:match('^(.-)%s*|%s*(.+)$')
+  if a and b then
+    require('cartograph').compare(vim.trim(a), vim.trim(b))
+  else
+    require('cartograph').compare_prompt()
+  end
+end, { nargs = '*', desc = 'Compare two paths, e.g. :CartographCompare GET /api/x | GET /api/y' })
 
 vim.api.nvim_create_user_command('CartographSave', function(opts)
   require('cartograph').save(opts.args)

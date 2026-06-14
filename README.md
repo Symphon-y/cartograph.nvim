@@ -10,13 +10,15 @@ highlighted. Clicking a node jumps your editor to that symbol.
 The v1 stack is **Vue (TS/JS) ↔ .NET (C#)**, built on a pluggable adapter
 architecture so other stacks can be added later.
 
-> **Status: early.** Phases 0–3 are in place: the scaffold, the engine with
+> **Status: early.** Phases 0–4 are in place: the scaffold, the engine with
 > in-language drill-down, the **interactive browser UI** (a `vim.uv` HTTP +
-> Server-Sent Events bridge serving a vendored, offline Cytoscape.js graph), and
-> the **cross-stack Vue↔.NET HTTP bridge** that links frontend request
-> call-sites to backend routes. Click a node to expand the next hop and jump
-> your editor to it; map from an endpoint with `:CartographEndpoint`. Compare is
-> next — see [`CARTOGRAPH_PLAN.md`](CARTOGRAPH_PLAN.md) for the full roadmap.
+> Server-Sent Events bridge serving a vendored, offline Cytoscape.js graph), the
+> **cross-stack Vue↔.NET HTTP bridge** that links frontend request call-sites to
+> backend routes, and **compare** — overlay two paths with shared nodes and
+> divergences highlighted. Click a node to expand the next hop and jump your
+> editor to it; map from an endpoint with `:CartographEndpoint`; diff two with
+> `:CartographCompare`. Persistence/polish is the remaining phase — see
+> [`CARTOGRAPH_PLAN.md`](CARTOGRAPH_PLAN.md) for the full roadmap.
 
 ## How it works
 
@@ -66,7 +68,7 @@ The plugin registers its commands automatically via `plugin/cartograph.lua`. A
 | `:Cartograph` | Open the map view (`:Cartograph!` to close) |
 | `:CartographFromCursor` | Seed a map from the symbol under the cursor |
 | `:CartographEndpoint GET /api/x` | Seed a map from an HTTP endpoint (cross-stack) |
-| `:CartographCompare` | Compare two code paths *(phase 4)* |
+| `:CartographCompare A \| B` | Overlay two paths, highlighting shared vs divergent |
 | `:CartographSave <name>` | Save the active map |
 | `:CartographLoad <name>` | Load a saved map |
 | `:CartographClose` | Close the session |

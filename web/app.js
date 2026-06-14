@@ -88,6 +88,14 @@
       },
       { selector: '.faded', style: { opacity: 0.15 } },
       { selector: '.match', style: { 'border-color': '#facc15', 'border-width': 4 } },
+      // Compare overlay: shared nodes are solid green; each side's unique nodes
+      // are dashed in that side's colour.
+      { selector: 'node.side-both', style: { 'border-color': '#22c55e', 'border-width': 4, 'border-style': 'solid' } },
+      { selector: 'node.side-a', style: { 'border-color': '#3b82f6', 'border-width': 3, 'border-style': 'dashed' } },
+      { selector: 'node.side-b', style: { 'border-color': '#f59e0b', 'border-width': 3, 'border-style': 'dashed' } },
+      { selector: 'edge.side-both', style: { 'line-color': '#22c55e', 'target-arrow-color': '#22c55e' } },
+      { selector: 'edge.side-a', style: { 'line-color': '#3b82f6', 'target-arrow-color': '#3b82f6', 'line-style': 'dashed' } },
+      { selector: 'edge.side-b', style: { 'line-color': '#f59e0b', 'target-arrow-color': '#f59e0b', 'line-style': 'dashed' } },
     ],
   });
 
@@ -117,6 +125,24 @@
     if (added > 0) {
       layout();
     }
+  }
+
+  // Replace the view with a compare overlay ({ nodes, edges, summary }), where
+  // each element carries a `side` of 'a' | 'b' | 'both'.
+  function renderCompare(diff) {
+    cy.elements().remove();
+    (diff.nodes || []).forEach(function (n) {
+      cy.add({ group: 'nodes', data: { id: n.id, label: n.name, kind: n.kind, file: n.file }, classes: 'side-' + n.side });
+    });
+    (diff.edges || []).forEach(function (e) {
+      var id = e.from + '__' + e.kind + '__' + e.to;
+      if (!cy.getElementById(e.from).empty() && !cy.getElementById(e.to).empty()) {
+        cy.add({ group: 'edges', data: { id: id, source: e.from, target: e.to, kind: e.kind }, classes: 'side-' + e.side });
+      }
+    });
+    layout();
+    var s = diff.summary || {};
+    setStatus('compare: ' + (s.shared || 0) + ' shared · ' + (s.only_a || 0) + ' only-A · ' + (s.only_b || 0) + ' only-B');
   }
 
   // ---- interactions -------------------------------------------------------
@@ -167,6 +193,9 @@
     var es = new EventSource(withToken('/events'));
     es.addEventListener('graph:update', function (e) {
       merge(JSON.parse(e.data));
+    });
+    es.addEventListener('compare:update', function (e) {
+      renderCompare(JSON.parse(e.data));
     });
     es.addEventListener('choices', function (e) {
       try {

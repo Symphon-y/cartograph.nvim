@@ -21,7 +21,7 @@ function M.setup(opts)
   end
   if maps.compare then
     vim.keymap.set('n', maps.compare, function()
-      M.compare()
+      M.compare_prompt()
     end, { desc = 'Cartograph: compare two paths' })
   end
 
@@ -149,9 +149,57 @@ function M.from_cursor()
   end)
 end
 
--- Compare two paths side by side. Wired up in phase 4.
-function M.compare()
-  vim.notify('cartograph: compare arrives in phase 4', vim.log.levels.INFO)
+-- Build a map graph for a compare seed (an endpoint query like "GET /api/x").
+local function seed_graph(seed)
+  local http = require('cartograph.resolver.http')
+  return (http.from_endpoint(require('cartograph.index').get(), seed))
+end
+
+-- Compare two paths: build a map for each seed, diff them, and push the
+-- annotated overlay to the browser. This is the single implementation the
+-- command, the keymap prompt and the browser's compare action all route to.
+function M.compare(a, b)
+  if not a or a == '' or not b or b == '' then
+    vim.notify('cartograph: compare needs two endpoints (A and B)', vim.log.levels.WARN)
+    return
+  end
+  if not state.active() then
+    M.open()
+  end
+
+  local ga, gb = seed_graph(a), seed_graph(b)
+  if not ga or not gb then
+    vim.notify('cartograph: no endpoint for ' .. (ga and b or a), vim.log.levels.WARN)
+    return
+  end
+
+  local diff = require('cartograph.compare').diff(ga, gb)
+  state.session.compare = { a = a, b = b }
+  if state.session.server then
+    state.session.server:broadcast('compare:update', diff)
+  end
+  vim.notify(
+    ('cartograph: compare — %d shared, %d only-A, %d only-B'):format(
+      diff.summary.shared,
+      diff.summary.only_a,
+      diff.summary.only_b
+    ),
+    vim.log.levels.INFO
+  )
+end
+
+-- Prompt for two endpoints, then compare them (used by the keymap).
+function M.compare_prompt()
+  vim.ui.input({ prompt = 'Compare endpoint A (e.g. GET /api/x): ' }, function(a)
+    if not a or a == '' then
+      return
+    end
+    vim.ui.input({ prompt = 'Compare endpoint B: ' }, function(b)
+      if b and b ~= '' then
+        M.compare(a, b)
+      end
+    end)
+  end)
 end
 
 function M.save(name)

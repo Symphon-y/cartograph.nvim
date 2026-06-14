@@ -25,12 +25,14 @@ that symbol.
 The v1 stack is Vue (TS/JS) <-> .NET (C#), built on a pluggable adapter
 architecture so other stacks can be added later.
 
-Status: early. Phases 0-3 are in place: scaffold, engine with in-language
+Status: early. Phases 0-4 are in place: scaffold, engine with in-language
 drill-down, the interactive browser UI (a vim.uv HTTP + Server-Sent Events
-bridge serving a vendored, offline Cytoscape.js graph), and the cross-stack
-Vue<->.NET HTTP bridge linking frontend request call-sites to backend routes.
+bridge serving a vendored, offline Cytoscape.js graph), the cross-stack
+Vue<->.NET HTTP bridge linking frontend request call-sites to backend routes,
+and compare (overlay two paths with shared nodes and divergences highlighted).
 Click a node to expand the next hop and jump your editor to it; map from an
-endpoint with :CartographEndpoint. See CARTOGRAPH_PLAN.md for the roadmap.
+endpoint with :CartographEndpoint; diff two with :CartographCompare. See
+CARTOGRAPH_PLAN.md for the roadmap.
 
 ==============================================================================
 2. REQUIREMENTS                                       *cartograph-requirements*
@@ -70,7 +72,10 @@ override defaults or bind the trigger keymaps.
                         call-sites that route to it.
 
                                                           *:CartographCompare*
-:CartographCompare      Compare two code paths side by side. (phase 4)
+:CartographCompare {a|b} Compare two paths, e.g.
+                        :CartographCompare GET /api/x | GET /api/y. With no
+                        args, prompts for both endpoints. Renders an overlay
+                        with shared nodes and divergences highlighted.
 
                                                              *:CartographSave*
 :CartographSave {name}  Save the active map under {name}.
