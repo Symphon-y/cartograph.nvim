@@ -1,0 +1,97 @@
+local graph = require('cartograph.graph')
+
+describe('cartograph.graph', function()
+  it('adds nodes and dedupes by id', function()
+    local g = graph.new()
+    g:add_node({ id = 'a', kind = 'controller', name = 'Foo' })
+    g:add_node({ id = 'a', kind = 'controller', name = 'Foo' })
+    assert.are.equal(1, g:node_count())
+  end)
+
+  it('merges fields when re-adding a node, preferring existing non-nil', function()
+    local g = graph.new()
+    g:add_node({ id = 'a', kind = 'controller', name = 'Foo', meta = { hits = 1 } })
+    g:add_node({ id = 'a', kind = 'controller', name = 'Bar', file = 'x.cs', meta = { lang = 'cs' } })
+    local node = g:get_node('a')
+    assert.are.equal('Foo', node.name) -- existing value kept
+    assert.are.equal('x.cs', node.file) -- previously-nil field filled in
+    assert.are.equal(1, node.meta.hits) -- meta accumulates
+    assert.are.equal('cs', node.meta.lang)
+  end)
+
+  it('adds edges and dedupes by (from, to, kind)', function()
+    local g = graph.new()
+    g:add_node({ id = 'a', kind = 'controller', name = 'A' })
+    g:add_node({ id = 'b', kind = 'action', name = 'B' })
+    assert.is_true(g:add_edge({ from = 'a', to = 'b', kind = 'calls' }))
+    assert.is_false(g:add_edge({ from = 'a', to = 'b', kind = 'calls' }))
+    -- same endpoints, different kind is a distinct edge
+    assert.is_true(g:add_edge({ from = 'a', to = 'b', kind = 'references' }))
+    assert.are.equal(2, g:edge_count())
+  end)
+
+  it('rejects invalid node and edge kinds', function()
+    local g = graph.new()
+    assert.has_error(function()
+      g:add_node({ id = 'a', kind = 'bogus', name = 'A' })
+    end)
+    g:add_node({ id = 'a', kind = 'action', name = 'A' })
+    g:add_node({ id = 'b', kind = 'action', name = 'B' })
+    assert.has_error(function()
+      g:add_edge({ from = 'a', to = 'b', kind = 'bogus' })
+    end)
+  end)
+
+  it('requires id on nodes and endpoints on edges', function()
+    local g = graph.new()
+    assert.has_error(function()
+      g:add_node({ kind = 'action', name = 'no id' })
+    end)
+    assert.has_error(function()
+      g:add_edge({ to = 'b', kind = 'calls' })
+    end)
+  end)
+
+  it('merges two graphs, deduping nodes and edges', function()
+    local a = graph.new()
+    a:add_node({ id = 'x', kind = 'endpoint', name = 'X' })
+    a:add_node({ id = 'y', kind = 'controller', name = 'Y' })
+    a:add_edge({ from = 'x', to = 'y', kind = 'routes-to' })
+
+    local b = graph.new()
+    b:add_node({ id = 'y', kind = 'controller', name = 'Y' })
+    b:add_node({ id = 'z', kind = 'type', name = 'Z' })
+    b:add_edge({ from = 'x', to = 'y', kind = 'routes-to' }) -- dup
+    b:add_edge({ from = 'y', to = 'z', kind = 'typeof' })
+
+    a:merge(b)
+    assert.are.equal(3, a:node_count())
+    assert.are.equal(2, a:edge_count())
+  end)
+
+  it('serializes nodes deterministically (sorted by id)', function()
+    local g = graph.new()
+    g:add_node({ id = 'c', kind = 'type', name = 'C' })
+    g:add_node({ id = 'a', kind = 'action', name = 'A' })
+    g:add_node({ id = 'b', kind = 'field', name = 'B' })
+    local data = g:serialize()
+    assert.are.same({ 'a', 'b', 'c' }, { data.nodes[1].id, data.nodes[2].id, data.nodes[3].id })
+    -- internal dedupe index is not leaked into the serialized form
+    assert.is_nil(data._edge_seen)
+  end)
+
+  it('round-trips through JSON', function()
+    local g = graph.new()
+    g:add_node({ id = 'a', kind = 'endpoint', name = 'A', file = 'a.cs', meta = { m = 1 } })
+    g:add_node({ id = 'b', kind = 'action', name = 'B' })
+    g:add_edge({ from = 'a', to = 'b', kind = 'routes-to' })
+
+    local restored = graph.from_json(graph.to_json(g))
+    assert.are.equal(g:node_count(), restored:node_count())
+    assert.are.equal(g:edge_count(), restored:edge_count())
+    assert.are.equal('a.cs', restored:get_node('a').file)
+    assert.are.equal(1, restored:get_node('a').meta.m)
+    -- dedupe index rebuilt, so re-adding the same edge is still a no-op
+    assert.is_false(restored:add_edge({ from = 'a', to = 'b', kind = 'routes-to' }))
+  end)
+end)

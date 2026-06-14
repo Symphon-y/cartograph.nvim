@@ -1,0 +1,111 @@
+*cartograph.txt*  Visually trace and compare code paths through a codebase
+
+==============================================================================
+CONTENTS                                                  *cartograph-contents*
+
+  1. Introduction ................. |cartograph-intro|
+  2. Requirements ................. |cartograph-requirements|
+  3. Setup ........................ |cartograph-setup|
+  4. Commands ..................... |cartograph-commands|
+  5. Configuration ................ |cartograph-config|
+  6. Architecture ................. |cartograph-architecture|
+  7. Health ....................... |cartograph-health|
+
+==============================================================================
+1. INTRODUCTION                                              *cartograph-intro*
+
+cartograph.nvim lets you visually trace and compare code paths through a
+codebase. You pick a starting point — an HTTP endpoint, or the symbol under
+your cursor — and the plugin renders its connections as an interactive graph
+you drill into hop by hop (endpoint -> controller -> action -> service/store
+-> type). You can open a second path and compare two chains side by side, with
+shared nodes and divergences highlighted. Clicking a node jumps your editor to
+that symbol.
+
+The v1 stack is Vue (TS/JS) <-> .NET (C#), built on a pluggable adapter
+architecture so other stacks can be added later.
+
+Status: early. Phase 0 (scaffold) and the start of phase 1 (engine +
+in-language drill-down) are in place. See CARTOGRAPH_PLAN.md for the roadmap.
+
+==============================================================================
+2. REQUIREMENTS                                       *cartograph-requirements*
+
+  - Neovim 0.9+
+  - Treesitter parsers `c_sharp`, `typescript`, `vue` (for structural
+    resolution); install with :TSInstall
+  - Per-language LSP servers for richer hops (OmniSharp/Roslyn, Volar/tsserver).
+    Resolvers fall back to Treesitter when no LSP client is attached.
+
+Run |:checkhealth| cartograph to verify what is available.
+
+==============================================================================
+3. SETUP                                                     *cartograph-setup*
+
+Minimal setup (uses defaults): >lua
+
+  require('cartograph').setup()
+<
+The plugin registers its commands automatically; setup() is only required to
+override defaults or bind the trigger keymaps.
+
+==============================================================================
+4. COMMANDS                                               *cartograph-commands*
+
+                                                                  *:Cartograph*
+:Cartograph             Open the map view. Use :Cartograph! to close.
+
+                                                        *:CartographFromCursor*
+:CartographFromCursor   Seed a map from the symbol under the cursor and drill
+                        its first in-language hop.
+
+                                                          *:CartographCompare*
+:CartographCompare      Compare two code paths side by side. (phase 4)
+
+                                                             *:CartographSave*
+:CartographSave {name}  Save the active map under {name}.
+
+                                                             *:CartographLoad*
+:CartographLoad {name}  Load a previously saved map by {name}.
+
+                                                            *:CartographClose*
+:CartographClose        Close the active session.
+
+==============================================================================
+5. CONFIGURATION                                            *cartograph-config*
+
+Defaults: >lua
+
+  require('cartograph').setup({
+    server = { host = '127.0.0.1', port = 0, auto_open = true, token = true },
+    view = { layout = 'dagre', theme = 'auto' },
+    adapters = { 'dotnet', 'vue' },
+    resolvers = { lsp = true, treesitter = true, http = true },
+    http = { base_urls = {}, route_overrides = {} },
+    persist = { dir = vim.fn.stdpath('data') .. '/cartograph' },
+    keymaps = {
+      from_cursor = '<leader>cm',
+      compare     = '<leader>cc',
+    },
+  })
+<
+
+==============================================================================
+6. ARCHITECTURE                                       *cartograph-architecture*
+
+Four layers, so the browser UI can be swapped without touching the engine:
+
+  1. Engine      language-agnostic graph model fed by LSP + Treesitter
+  2. Adapters    stack-specific route/controller/call-site knowledge
+  3. Bridge      pure-Lua vim.uv server, Server-Sent Events to the browser
+  4. Web UI      bundled, offline Cytoscape.js graph
+
+See CARTOGRAPH_PLAN.md for the full design and roadmap.
+
+==============================================================================
+7. HEALTH                                                   *cartograph-health*
+
+:checkhealth cartograph verifies the required Treesitter parsers, reports
+active LSP clients, and checks that a browser launcher is available.
+
+vim:tw=78:ts=8:ft=help:norl:
