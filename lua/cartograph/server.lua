@@ -219,12 +219,39 @@ function M.start(opts)
   return self
 end
 
-function Server:url(path)
-  local base = ('http://%s:%d%s'):format(self.host, self.port, path or '/')
-  if self.token ~= '' then
-    base = base .. (path and path:find('?') and '&' or '?') .. 'token=' .. self.token
+-- Pure URL builder: host:port + path + a query of (token first, then params
+-- sorted by key). Kept pure so the query assembly is unit-tested and there is
+-- one place that knows the token/theme/layout wiring.
+function M.build_url(opts)
+  local query = {}
+  if opts.token and opts.token ~= '' then
+    query[#query + 1] = 'token=' .. opts.token
   end
-  return base
+  local params = opts.params or {}
+  local keys = {}
+  for k in pairs(params) do
+    keys[#keys + 1] = k
+  end
+  table.sort(keys)
+  for _, k in ipairs(keys) do
+    query[#query + 1] = k .. '=' .. tostring(params[k])
+  end
+
+  local url = ('http://%s:%d%s'):format(opts.host, opts.port, opts.path or '/')
+  if #query > 0 then
+    url = url .. '?' .. table.concat(query, '&')
+  end
+  return url
+end
+
+function Server:url(path, params)
+  return M.build_url({
+    host = self.host,
+    port = self.port,
+    token = self.token,
+    path = path or '/',
+    params = params,
+  })
 end
 
 return M

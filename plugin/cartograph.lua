@@ -34,7 +34,19 @@ end, { nargs = 1, desc = 'Save the active map under a name' })
 
 vim.api.nvim_create_user_command('CartographLoad', function(opts)
   require('cartograph').load(opts.args)
-end, { nargs = 1, desc = 'Load a saved map by name' })
+end, {
+  nargs = 1,
+  desc = 'Load a saved map by name',
+  complete = function(arglead)
+    return vim.tbl_filter(function(name)
+      return name:find(arglead, 1, true) == 1
+    end, require('cartograph.state').list())
+  end,
+})
+
+vim.api.nvim_create_user_command('CartographMaps', function()
+  require('cartograph').list_maps()
+end, { desc = 'List saved cartograph maps' })
 
 vim.api.nvim_create_user_command('CartographClose', function()
   require('cartograph').close()

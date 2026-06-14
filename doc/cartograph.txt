@@ -8,8 +8,9 @@ CONTENTS                                                  *cartograph-contents*
   3. Setup ........................ |cartograph-setup|
   4. Commands ..................... |cartograph-commands|
   5. Configuration ................ |cartograph-config|
-  6. Architecture ................. |cartograph-architecture|
-  7. Health ....................... |cartograph-health|
+  6. Persistence .................. |cartograph-persistence|
+  7. Architecture ................. |cartograph-architecture|
+  8. Health ....................... |cartograph-health|
 
 ==============================================================================
 1. INTRODUCTION                                              *cartograph-intro*
@@ -25,14 +26,15 @@ that symbol.
 The v1 stack is Vue (TS/JS) <-> .NET (C#), built on a pluggable adapter
 architecture so other stacks can be added later.
 
-Status: early. Phases 0-4 are in place: scaffold, engine with in-language
-drill-down, the interactive browser UI (a vim.uv HTTP + Server-Sent Events
-bridge serving a vendored, offline Cytoscape.js graph), the cross-stack
-Vue<->.NET HTTP bridge linking frontend request call-sites to backend routes,
-and compare (overlay two paths with shared nodes and divergences highlighted).
-Click a node to expand the next hop and jump your editor to it; map from an
-endpoint with :CartographEndpoint; diff two with :CartographCompare. See
-CARTOGRAPH_PLAN.md for the roadmap.
+Status: all five phases from CARTOGRAPH_PLAN.md are in place: scaffold, engine
+with in-language drill-down, the interactive browser UI (a vim.uv HTTP +
+Server-Sent Events bridge serving a vendored, offline Cytoscape.js graph), the
+cross-stack Vue<->.NET HTTP bridge linking frontend request call-sites to
+backend routes, compare (overlay two paths with shared nodes and divergences
+highlighted), and persistence/polish (named maps, an interactive ambiguity
+pick-list, healthcheck). Click a node to expand the next hop and jump your
+editor to it; map from an endpoint with :CartographEndpoint; diff two with
+:CartographCompare.
 
 ==============================================================================
 2. REQUIREMENTS                                       *cartograph-requirements*
@@ -81,7 +83,11 @@ override defaults or bind the trigger keymaps.
 :CartographSave {name}  Save the active map under {name}.
 
                                                              *:CartographLoad*
-:CartographLoad {name}  Load a previously saved map by {name}.
+:CartographLoad {name}  Load a previously saved map by {name}. Completes on the
+                        names of saved maps.
+
+                                                             *:CartographMaps*
+:CartographMaps         List the saved maps.
 
                                                             *:CartographClose*
 :CartographClose        Close the active session.
@@ -104,9 +110,31 @@ Defaults: >lua
     },
   })
 <
+Notable options:
+  view.layout       cytoscape layout passed to the browser ('dagre' default)
+  view.theme        'light' | 'dark' | 'auto'
+  http.base_urls    prefixes stripped from frontend request URLs before
+                    matching, e.g. { '/api', 'https://localhost:5001' }
+  http.route_overrides  explicit { [frontend_url] = backend_route } links for
+                    matches the heuristics get wrong
+  persist.dir       directory for saved maps (JSON)
 
 ==============================================================================
-6. ARCHITECTURE                                       *cartograph-architecture*
+6. PERSISTENCE                                         *cartograph-persistence*
+
+Maps are saved as JSON under `persist.dir`. >
+
+  :CartographSave mymap     " write the active map
+  :CartographLoad mymap     " restore it (tab-completes saved names)
+  :CartographMaps           " list saved maps
+<
+When an endpoint query or request URL is ambiguous (several routes match
+equally), the browser shows an interactive pick-list to choose the intended
+route. For matches the heuristics get wrong, pin them with http.base_urls or
+http.route_overrides.
+
+==============================================================================
+7. ARCHITECTURE                                       *cartograph-architecture*
 
 Four layers, so the browser UI can be swapped without touching the engine:
 
@@ -118,9 +146,11 @@ Four layers, so the browser UI can be swapped without touching the engine:
 See CARTOGRAPH_PLAN.md for the full design and roadmap.
 
 ==============================================================================
-7. HEALTH                                                   *cartograph-health*
+8. HEALTH                                                   *cartograph-health*
 
 :checkhealth cartograph verifies the required Treesitter parsers, reports
-active LSP clients, and checks that a browser launcher is available.
+active LSP clients, checks that a browser launcher is available, confirms the
+bundled web UI assets are present, and that the saved-maps directory is
+writable.
 
 vim:tw=78:ts=8:ft=help:norl:

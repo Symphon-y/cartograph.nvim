@@ -10,15 +10,16 @@ highlighted. Clicking a node jumps your editor to that symbol.
 The v1 stack is **Vue (TS/JS) ↔ .NET (C#)**, built on a pluggable adapter
 architecture so other stacks can be added later.
 
-> **Status: early.** Phases 0–4 are in place: the scaffold, the engine with
-> in-language drill-down, the **interactive browser UI** (a `vim.uv` HTTP +
-> Server-Sent Events bridge serving a vendored, offline Cytoscape.js graph), the
-> **cross-stack Vue↔.NET HTTP bridge** that links frontend request call-sites to
-> backend routes, and **compare** — overlay two paths with shared nodes and
-> divergences highlighted. Click a node to expand the next hop and jump your
-> editor to it; map from an endpoint with `:CartographEndpoint`; diff two with
-> `:CartographCompare`. Persistence/polish is the remaining phase — see
-> [`CARTOGRAPH_PLAN.md`](CARTOGRAPH_PLAN.md) for the full roadmap.
+> **Status.** All five phases from [`CARTOGRAPH_PLAN.md`](CARTOGRAPH_PLAN.md) are
+> in place: the scaffold, the engine with in-language drill-down, the
+> **interactive browser UI** (a `vim.uv` HTTP + Server-Sent Events bridge
+> serving a vendored, offline Cytoscape.js graph), the **cross-stack Vue↔.NET
+> HTTP bridge** linking frontend request call-sites to backend routes,
+> **compare** (overlay two paths with shared nodes and divergences highlighted),
+> and persistence/polish (named maps, an interactive ambiguity pick-list,
+> healthcheck). Click a node to expand the next hop and jump your editor to it;
+> map from an endpoint with `:CartographEndpoint`; diff two with
+> `:CartographCompare`.
 
 ## How it works
 
@@ -70,8 +71,14 @@ The plugin registers its commands automatically via `plugin/cartograph.lua`. A
 | `:CartographEndpoint GET /api/x` | Seed a map from an HTTP endpoint (cross-stack) |
 | `:CartographCompare A \| B` | Overlay two paths, highlighting shared vs divergent |
 | `:CartographSave <name>` | Save the active map |
-| `:CartographLoad <name>` | Load a saved map |
+| `:CartographLoad <name>` | Load a saved map (tab-completes saved names) |
+| `:CartographMaps` | List saved maps |
 | `:CartographClose` | Close the session |
+
+Saved maps are JSON under `persist.dir` (`stdpath('data')/cartograph` by
+default). When a query or request URL matches several routes, the browser shows
+an interactive pick-list to disambiguate; for stubborn cases set
+`http.base_urls` / `http.route_overrides` in config.
 
 ## Configuration
 

@@ -40,6 +40,17 @@ local function map_path(name)
   return persist_dir() .. '/' .. name .. '.json'
 end
 
+-- Names of the saved maps, sorted. Cheap enough to call for completion.
+function M.list()
+  local dir = require('cartograph.config').options.persist.dir
+  local names = {}
+  for _, path in ipairs(vim.fn.glob(dir .. '/*.json', false, true)) do
+    names[#names + 1] = vim.fn.fnamemodify(path, ':t:r')
+  end
+  table.sort(names)
+  return names
+end
+
 -- Persist the active session's graph under `name`.
 function M.save(name)
   if not M.active() then

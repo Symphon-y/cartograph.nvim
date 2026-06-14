@@ -67,6 +67,32 @@ function M.check()
       { 'The interactive UI opens in a browser; set view to terminal mode when available' }
     )
   end
+
+  h_start('cartograph: bundled web UI')
+  local src = debug.getinfo(1, 'S').source:sub(2)
+  local plugin_root = vim.fn.fnamemodify(src, ':h:h:h')
+  local assets = { '/web/index.html', '/web/vendor/cytoscape.min.js' }
+  local missing = false
+  for _, rel in ipairs(assets) do
+    if vim.fn.filereadable(plugin_root .. rel) ~= 1 then
+      missing = true
+      h_error('missing bundled asset: ' .. rel)
+    end
+  end
+  if not missing then
+    h_ok('web UI assets present (Cytoscape vendored offline)')
+  end
+
+  h_start('cartograph: persistence')
+  local dir = require('cartograph.config').options.persist.dir
+  local ok = pcall(function()
+    vim.fn.mkdir(dir, 'p')
+  end)
+  if ok and vim.fn.isdirectory(dir) == 1 and vim.fn.filewritable(dir) == 2 then
+    h_ok('saved-maps directory writable: ' .. dir)
+  else
+    h_warn('saved-maps directory not writable: ' .. dir, { 'Saving/loading named maps will fail' })
+  end
 end
 
 return M

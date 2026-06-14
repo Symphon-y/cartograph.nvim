@@ -93,6 +93,48 @@ body {
   min-height: 0;
 }
 
+#choices {
+  position: absolute;
+  top: 3.2rem;
+  right: 1rem;
+  max-width: 22rem;
+  display: none;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.6rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 24px #00000033;
+}
+
+#choices.open {
+  display: flex;
+}
+
+#choices .choices-title {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+}
+
+#choices .choice {
+  text-align: left;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82rem;
+}
+
+#choices .choice:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 #legend {
   display: flex;
   flex-wrap: wrap;

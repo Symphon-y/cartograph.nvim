@@ -91,8 +91,10 @@ function M.open()
   -- Push whatever we already have so a freshly opened browser isn't blank.
   session.server:broadcast('graph:update', session.graph:serialize())
 
-  local url = session.server:url('/')
-  url = url .. (url:find('?', 1, true) and '&' or '?') .. 'theme=' .. config.options.view.theme
+  local url = session.server:url('/', {
+    theme = config.options.view.theme,
+    layout = config.options.view.layout,
+  })
   if config.options.server.auto_open then
     require('cartograph.browser').open(url)
   end
@@ -218,8 +220,22 @@ function M.load(name)
     return
   end
   if state.load(name) then
+    if state.session.server then
+      state.session.server:broadcast('graph:update', state.session.graph:serialize())
+    end
     vim.notify('cartograph: loaded map "' .. name .. '"', vim.log.levels.INFO)
   end
+end
+
+-- Echo the saved maps (also available as completion on :CartographLoad).
+function M.list_maps()
+  local names = state.list()
+  if #names == 0 then
+    vim.notify('cartograph: no saved maps', vim.log.levels.INFO)
+    return names
+  end
+  vim.notify('cartograph maps:\n  ' .. table.concat(names, '\n  '), vim.log.levels.INFO)
+  return names
 end
 
 return M

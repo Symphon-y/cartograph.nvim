@@ -10,6 +10,7 @@
   var params = new URLSearchParams(window.location.search);
   var token = params.get('token') || '';
   var theme = params.get('theme') || 'auto';
+  var layoutName = params.get('layout') || 'dagre';
 
   // Colour per node kind. One source of truth, shared by Cytoscape + legend.
   var KIND_COLOR = {
@@ -100,7 +101,13 @@
   });
 
   function layout() {
-    cy.layout({ name: 'dagre', rankDir: 'LR', nodeSep: 30, rankSep: 60, animate: true, animationDuration: 200 }).run();
+    var opts = { name: layoutName, animate: true, animationDuration: 200 };
+    if (layoutName === 'dagre') {
+      opts.rankDir = 'LR';
+      opts.nodeSep = 30;
+      opts.rankSep = 60;
+    }
+    cy.layout(opts).run();
   }
 
   // Merge a serialized graph ({ nodes, edges }) into the view. New elements are
@@ -174,6 +181,35 @@
     }
   });
 
+  // ---- ambiguity pick-list ------------------------------------------------
+
+  // Render an interactive pick-list when a query matched several endpoints.
+  // Choosing one re-roots on that exact method+path to disambiguate.
+  function showChoices(d) {
+    var panel = document.getElementById('choices');
+    panel.innerHTML = '';
+    if (!d.candidates || d.candidates.length === 0) {
+      panel.classList.remove('open');
+      return;
+    }
+    var title = document.createElement('div');
+    title.className = 'choices-title';
+    title.textContent = 'Ambiguous "' + d.query + '" — pick one:';
+    panel.appendChild(title);
+
+    d.candidates.forEach(function (c) {
+      var item = document.createElement('button');
+      item.className = 'choice';
+      item.textContent = c.method + ' /' + c.path + (c.action ? '  →  ' + c.action : '');
+      item.addEventListener('click', function () {
+        send('setRoot', { query: c.method + ' /' + c.path });
+        panel.classList.remove('open');
+      });
+      panel.appendChild(item);
+    });
+    panel.classList.add('open');
+  }
+
   // ---- theme + legend -----------------------------------------------------
 
   function buildLegend() {
@@ -199,11 +235,7 @@
     });
     es.addEventListener('choices', function (e) {
       try {
-        var d = JSON.parse(e.data);
-        var labels = (d.candidates || []).map(function (c) {
-          return c.method + ' /' + c.path + (c.action ? ' (' + c.action + ')' : '');
-        });
-        setStatus('ambiguous "' + d.query + '": ' + labels.join('  |  '));
+        showChoices(JSON.parse(e.data));
       } catch (_) {
         /* ignore */
       }
