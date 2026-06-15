@@ -59,5 +59,23 @@ describe('cartograph.sse', function()
       hub:broadcast('status', 'x')
       assert.are.equal(0, hub:count())
     end)
+
+    it('close_all closes every client handle and empties the registry', function()
+      local hub = sse.new_hub()
+      local closed = {}
+      local function fake_uv_client(id)
+        return {
+          handle = {
+            is_closing = function() return false end,
+            close      = function() closed[#closed + 1] = id end,
+          },
+        }
+      end
+      hub:add(fake_uv_client('a'))
+      hub:add(fake_uv_client('b'))
+      hub:close_all()
+      assert.are.equal(2, #closed)
+      assert.are.equal(0, hub:count())
+    end)
   end)
 end)

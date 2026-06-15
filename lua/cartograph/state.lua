@@ -36,7 +36,14 @@ local function persist_dir()
   return dir
 end
 
+local function valid_name(name)
+  return type(name) == 'string' and name:match('^[%w%-_]+$') ~= nil
+end
+
 local function map_path(name)
+  if not valid_name(name) then
+    return nil
+  end
   return persist_dir() .. '/' .. name .. '.json'
 end
 
@@ -53,13 +60,18 @@ end
 
 -- Persist the active session's graph under `name`.
 function M.save(name)
+  local path = map_path(name)
+  if not path then
+    vim.notify('cartograph: invalid map name "' .. tostring(name) .. '"', vim.log.levels.ERROR)
+    return false
+  end
   if not M.active() then
     vim.notify('cartograph: no active map to save', vim.log.levels.WARN)
     return false
   end
   local graph = require('cartograph.graph')
   local ok, err = pcall(function()
-    local fd = assert(io.open(map_path(name), 'w'))
+    local fd = assert(io.open(path, 'w'))
     fd:write(graph.to_json(M.session.graph))
     fd:close()
   end)
@@ -73,6 +85,10 @@ end
 -- Load a named map into a fresh session and return it.
 function M.load(name)
   local path = map_path(name)
+  if not path then
+    vim.notify('cartograph: invalid map name "' .. tostring(name) .. '"', vim.log.levels.ERROR)
+    return false
+  end
   local fd = io.open(path, 'r')
   if not fd then
     vim.notify('cartograph: no saved map named ' .. name, vim.log.levels.WARN)

@@ -1,0 +1,18 @@
+local server = require('cartograph.server')
+
+describe('cartograph.server authorization', function()
+  it('allows any request when token auth is disabled', function()
+    local s = server.start({ token = false })
+    assert.is_true(s:authorized({ query = {} }))
+    assert.is_true(s:authorized({ query = { token = 'anything' } }))
+    s:stop()
+  end)
+
+  it('requires a matching token when auth is enabled', function()
+    local s = server.start({})
+    assert.is_false(s:authorized({ query = {} }))
+    assert.is_false(s:authorized({ query = { token = 'wrong' } }))
+    assert.is_true(s:authorized({ query = { token = s.token } }))
+    s:stop()
+  end)
+end)

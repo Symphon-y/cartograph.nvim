@@ -68,6 +68,9 @@ function Server:serve_static(client, path)
 end
 
 function Server:authorized(req)
+  if not self.token then
+    return true
+  end
   return req.query.token == self.token
 end
 
@@ -183,6 +186,7 @@ function Server:broadcast(event, data)
 end
 
 function Server:stop()
+  self.hub:close_all()
   if self.tcp and not self.tcp:is_closing() then
     self.tcp:close()
   end
@@ -196,7 +200,7 @@ function M.start(opts)
   local self = setmetatable({
     engine = opts.engine or {},
     hub = sse.new_hub(),
-    token = opts.token == false and '' or make_token(),
+    token = opts.token ~= false and make_token() or nil,
   }, Server)
 
   self.tcp = uv.new_tcp()
@@ -224,8 +228,9 @@ end
 -- one place that knows the token/theme/layout wiring.
 function M.build_url(opts)
   local query = {}
+  local enc = wire.urlencode
   if opts.token and opts.token ~= '' then
-    query[#query + 1] = 'token=' .. opts.token
+    query[#query + 1] = 'token=' .. enc(opts.token)
   end
   local params = opts.params or {}
   local keys = {}
@@ -234,7 +239,7 @@ function M.build_url(opts)
   end
   table.sort(keys)
   for _, k in ipairs(keys) do
-    query[#query + 1] = k .. '=' .. tostring(params[k])
+    query[#query + 1] = enc(k) .. '=' .. enc(tostring(params[k]))
   end
 
   local url = ('http://%s:%d%s'):format(opts.host, opts.port, opts.path or '/')

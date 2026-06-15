@@ -56,6 +56,15 @@ function Hub:count()
   return n
 end
 
+function Hub:close_all()
+  for sc in pairs(self.clients) do
+    if not sc.handle:is_closing() then
+      sc.handle:close()
+    end
+  end
+  self.clients = {}
+end
+
 -- Format once, write to every client, drop any whose write fails.
 function Hub:broadcast(event, data)
   local payload = M.format(event, data)

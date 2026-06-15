@@ -86,6 +86,20 @@ describe('cartograph.adapters.dotnet', function()
     assert.are.equal('api/login', routes[2].norm.str)
   end)
 
+  it('captures [Route] when it appears on the same line as the class declaration', function()
+    local src = [[
+[Route("api/[controller]")] public class ItemsController : ControllerBase
+{
+    [HttpGet("list")]
+    public IActionResult List() => Ok();
+}
+]]
+    local routes = dotnet.extract(src, 'ItemsController.cs')
+    assert.are.equal(1, #routes)
+    assert.are.equal('GET', routes[1].method)
+    assert.are.equal('api/items/list', routes[1].norm.str)
+  end)
+
   it('reports the language it handles', function()
     assert.is_true(dotnet.handles('Foo.cs'))
     assert.is_false(dotnet.handles('foo.ts'))

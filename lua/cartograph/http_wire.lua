@@ -37,6 +37,14 @@ function M.urldecode(s)
   end))
 end
 
+-- Percent-encode a query component (RFC 3986 unreserved characters are left as-is).
+function M.urlencode(s)
+  s = tostring(s)
+  return (s:gsub('[^%w%-_%.~]', function(c)
+    return string.format('%%%02X', string.byte(c))
+  end))
+end
+
 -- Parse a `k=v&k2=v2` query string into a (url-decoded) table.
 function M.parse_query(qs)
   local out = {}

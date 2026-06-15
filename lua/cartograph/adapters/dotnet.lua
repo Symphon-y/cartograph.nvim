@@ -73,11 +73,7 @@ function M.extract(source, file)
     if verb and HTTP_VERBS[verb] then
       pending[#pending + 1] = { method = HTTP_VERBS[verb], template = tmpl, line = i }
     elseif rt then
-      if line:match('class%s') then
-        -- (rare) same-line; handled by the class branch below
-      else
-        pending_route = rt
-      end
+      pending_route = rt
     end
 
     -- Class declaration: attach the most recent pending [Route] as its base.
