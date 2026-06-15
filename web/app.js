@@ -38,7 +38,7 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     }).catch(function (err) {
-      setStatus('request failed: ' + err);
+      setStatus('request failed: ' + (err && err.message ? err.message : String(err)));
     });
   }
 
