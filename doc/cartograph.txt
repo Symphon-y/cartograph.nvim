@@ -1,0 +1,156 @@
+*cartograph.txt*  Visually trace and compare code paths through a codebase
+
+==============================================================================
+CONTENTS                                                  *cartograph-contents*
+
+  1. Introduction ................. |cartograph-intro|
+  2. Requirements ................. |cartograph-requirements|
+  3. Setup ........................ |cartograph-setup|
+  4. Commands ..................... |cartograph-commands|
+  5. Configuration ................ |cartograph-config|
+  6. Persistence .................. |cartograph-persistence|
+  7. Architecture ................. |cartograph-architecture|
+  8. Health ....................... |cartograph-health|
+
+==============================================================================
+1. INTRODUCTION                                              *cartograph-intro*
+
+cartograph.nvim lets you visually trace and compare code paths through a
+codebase. You pick a starting point — an HTTP endpoint, or the symbol under
+your cursor — and the plugin renders its connections as an interactive graph
+you drill into hop by hop (endpoint -> controller -> action -> service/store
+-> type). You can open a second path and compare two chains side by side, with
+shared nodes and divergences highlighted. Clicking a node jumps your editor to
+that symbol.
+
+The v1 stack is Vue (TS/JS) <-> .NET (C#), built on a pluggable adapter
+architecture so other stacks can be added later.
+
+Status: all five phases from CARTOGRAPH_PLAN.md are in place: scaffold, engine
+with in-language drill-down, the interactive browser UI (a vim.uv HTTP +
+Server-Sent Events bridge serving a vendored, offline Cytoscape.js graph), the
+cross-stack Vue<->.NET HTTP bridge linking frontend request call-sites to
+backend routes, compare (overlay two paths with shared nodes and divergences
+highlighted), and persistence/polish (named maps, an interactive ambiguity
+pick-list, healthcheck). Click a node to expand the next hop and jump your
+editor to it; map from an endpoint with :CartographEndpoint; diff two with
+:CartographCompare.
+
+==============================================================================
+2. REQUIREMENTS                                       *cartograph-requirements*
+
+  - Neovim 0.9+
+  - Treesitter parsers `c_sharp`, `typescript`, `vue` (for structural
+    resolution); install with :TSInstall
+  - Per-language LSP servers for richer hops (OmniSharp/Roslyn, Volar/tsserver).
+    Resolvers fall back to Treesitter when no LSP client is attached.
+
+Run |:checkhealth| cartograph to verify what is available.
+
+==============================================================================
+3. SETUP                                                     *cartograph-setup*
+
+Minimal setup (uses defaults): >lua
+
+  require('cartograph').setup()
+<
+The plugin registers its commands automatically; setup() is only required to
+override defaults or bind the trigger keymaps.
+
+==============================================================================
+4. COMMANDS                                               *cartograph-commands*
+
+                                                                  *:Cartograph*
+:Cartograph             Open the map view. Use :Cartograph! to close.
+
+                                                        *:CartographFromCursor*
+:CartographFromCursor   Seed a map from the symbol under the cursor and drill
+                        its first in-language hop.
+
+                                                          *:CartographEndpoint*
+:CartographEndpoint {q} Seed a map from an HTTP endpoint matched by {q}, e.g.
+                        :CartographEndpoint GET /api/validation/validate. Uses
+                        the cross-stack bridge to attach the frontend request
+                        call-sites that route to it.
+
+                                                          *:CartographCompare*
+:CartographCompare {a|b} Compare two paths, e.g.
+                        :CartographCompare GET /api/x | GET /api/y. With no
+                        args, prompts for both endpoints. Renders an overlay
+                        with shared nodes and divergences highlighted.
+
+                                                             *:CartographSave*
+:CartographSave {name}  Save the active map under {name}.
+
+                                                             *:CartographLoad*
+:CartographLoad {name}  Load a previously saved map by {name}. Completes on the
+                        names of saved maps.
+
+                                                             *:CartographMaps*
+:CartographMaps         List the saved maps.
+
+                                                            *:CartographClose*
+:CartographClose        Close the active session.
+
+==============================================================================
+5. CONFIGURATION                                            *cartograph-config*
+
+Defaults: >lua
+
+  require('cartograph').setup({
+    server = { host = '127.0.0.1', port = 0, auto_open = true, token = true },
+    view = { layout = 'dagre', theme = 'auto' },
+    adapters = { 'dotnet', 'vue' },
+    resolvers = { lsp = true, treesitter = true, http = true },
+    http = { base_urls = {}, route_overrides = {} },
+    persist = { dir = vim.fn.stdpath('data') .. '/cartograph' },
+    keymaps = {
+      from_cursor = '<leader>cm',
+      compare     = '<leader>cc',
+    },
+  })
+<
+Notable options:
+  view.layout       cytoscape layout passed to the browser ('dagre' default)
+  view.theme        'light' | 'dark' | 'auto'
+  http.base_urls    prefixes stripped from frontend request URLs before
+                    matching, e.g. { '/api', 'https://localhost:5001' }
+  http.route_overrides  explicit { [frontend_url] = backend_route } links for
+                    matches the heuristics get wrong
+  persist.dir       directory for saved maps (JSON)
+
+==============================================================================
+6. PERSISTENCE                                         *cartograph-persistence*
+
+Maps are saved as JSON under `persist.dir`. >
+
+  :CartographSave mymap     " write the active map
+  :CartographLoad mymap     " restore it (tab-completes saved names)
+  :CartographMaps           " list saved maps
+<
+When an endpoint query or request URL is ambiguous (several routes match
+equally), the browser shows an interactive pick-list to choose the intended
+route. For matches the heuristics get wrong, pin them with http.base_urls or
+http.route_overrides.
+
+==============================================================================
+7. ARCHITECTURE                                       *cartograph-architecture*
+
+Four layers, so the browser UI can be swapped without touching the engine:
+
+  1. Engine      language-agnostic graph model fed by LSP + Treesitter
+  2. Adapters    stack-specific route/controller/call-site knowledge
+  3. Bridge      pure-Lua vim.uv server, Server-Sent Events to the browser
+  4. Web UI      bundled, offline Cytoscape.js graph
+
+See CARTOGRAPH_PLAN.md for the full design and roadmap.
+
+==============================================================================
+8. HEALTH                                                   *cartograph-health*
+
+:checkhealth cartograph verifies the required Treesitter parsers, reports
+active LSP clients, checks that a browser launcher is available, confirms the
+bundled web UI assets are present, and that the saved-maps directory is
+writable.
+
+vim:tw=78:ts=8:ft=help:norl:
