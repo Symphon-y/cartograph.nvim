@@ -17,11 +17,7 @@ local h_info = health.info or health.report_info
 local REQUIRED_PARSERS = { 'c_sharp', 'typescript', 'vue' }
 
 local function has_parser(lang)
-  local ok, has = pcall(function()
-    return vim.treesitter.language.add and vim.treesitter.language.add(lang)
-      or require('nvim-treesitter.parsers').has_parser(lang)
-  end)
-  return ok and has ~= false
+  return pcall(vim.treesitter.language.add, lang)
 end
 
 function M.check()
