@@ -16,6 +16,7 @@ function M.new()
     compare = nil, -- { a = root_id, b = root_id } when comparing two paths
     expanded = {}, -- node id -> true, tracks which hops have been drilled
     selected = nil, -- node id currently focused in the UI
+    focus = nil, -- { path = { node_id, … } } the active focus/trace path
     server = nil, -- handle to the running bridge server (set in phase 2)
   }
   return M.session
@@ -23,6 +24,39 @@ end
 
 function M.active()
   return M.session ~= nil
+end
+
+-- Annotate the active graph with CLEAN layers and push it to every browser.
+-- The single place graph updates leave the engine, so layer stamping and the
+-- SSE wire format live in one spot (used by init, the bridge and the repo cmd).
+function M.broadcast_graph()
+  if not (M.active() and M.session.server) then
+    return
+  end
+  local cfg = require('cartograph.config').options.clean
+  require('cartograph.layer').annotate(M.session.graph, cfg)
+  M.session.server:broadcast('graph:update', M.session.graph:serialize())
+  -- A graph change (e.g. an expand adding children) may light new nodes in the
+  -- active focus path — recompute and re-push the overlay so it stays in sync.
+  if M.session.focus and M.session.focus.path and #M.session.focus.path > 0 then
+    M.broadcast_focus()
+  end
+end
+
+-- Push the focus/trace overlay (active node set + breadcrumb path) to browsers.
+-- An empty path broadcasts a cleared overlay so the UI un-dims the full graph.
+function M.broadcast_focus()
+  if not (M.active() and M.session.server) then
+    return
+  end
+  local path = M.session.focus and M.session.focus.path or {}
+  local overlay
+  if #path > 0 then
+    overlay = require('cartograph.focus').overlay(path, M.session.graph)
+  else
+    overlay = { active = vim.empty_dict(), path = {} }
+  end
+  M.session.server:broadcast('focus:update', overlay)
 end
 
 function M.clear()

@@ -56,9 +56,7 @@ function M.from_endpoint(query)
   state.session.graph:merge(g)
   state.session.root = root.id
   state.session.expanded[root.id] = true
-  if state.session.server then
-    state.session.server:broadcast('graph:update', state.session.graph:serialize())
-  end
+  state.broadcast_graph()
   vim.notify(
     ('cartograph: rooted at %s%s'):format(root.name, info.ambiguous and ' (ambiguous — see choices)' or ''),
     vim.log.levels.INFO
@@ -89,9 +87,10 @@ function M.open()
   end
 
   -- Push whatever we already have so a freshly opened browser isn't blank.
-  session.server:broadcast('graph:update', session.graph:serialize())
+  state.broadcast_graph()
 
   local url = session.server:url('/', {
+    renderer = config.options.view.renderer,
     theme = config.options.view.theme,
     layout = config.options.view.layout,
   })
@@ -145,8 +144,47 @@ function M.from_cursor()
       ),
       vim.log.levels.INFO
     )
-    if state.session.server then
-      state.session.server:broadcast('graph:update', g:serialize())
+    state.broadcast_graph()
+  end)
+end
+
+-- Build a force-directed map of the whole repository (symbols + resolved calls,
+-- grouped by CLEAN layer). Scans asynchronously so a large repo never blocks.
+function M.repo()
+  if not state.active() then
+    M.open()
+  end
+  vim.notify('cartograph: building repository graph…', vim.log.levels.INFO)
+  require('cartograph.repo').build({}, function(g, info)
+    state.session.graph = g
+    state.session.root = nil
+    state.session.expanded = {}
+    state.session.focus = nil
+    state.broadcast_graph()
+    vim.notify(
+      ('cartograph: repository graph — %d node(s), %d edge(s) from %d file(s)%s'):format(
+        g:node_count(),
+        g:edge_count(),
+        info.files,
+        info.truncated and (' (capped at ' .. require('cartograph.config').options.repo.max_nodes .. ')') or ''
+      ),
+      vim.log.levels.INFO
+    )
+    -- Loudly flag languages whose parser is missing — the usual reason a scan
+    -- comes back with 0 nodes (e.g. a JS repo with no javascript parser).
+    local langs = {}
+    for lang in pairs(info.missing or {}) do
+      langs[#langs + 1] = lang
+    end
+    if #langs > 0 then
+      table.sort(langs)
+      vim.notify(
+        ('cartograph: no Treesitter parser for %s — install with :TSInstall %s'):format(
+          table.concat(langs, ', '),
+          table.concat(langs, ' ')
+        ),
+        vim.log.levels.WARN
+      )
     end
   end)
 end
@@ -176,6 +214,10 @@ function M.compare(a, b)
   end
 
   local diff = require('cartograph.compare').diff(ga, gb)
+  local layer = require('cartograph.layer')
+  for _, n in ipairs(diff.nodes) do
+    n.layer = layer.classify(n, config.options.clean)
+  end
   state.session.compare = { a = a, b = b }
   if state.session.server then
     state.session.server:broadcast('compare:update', diff)
@@ -220,9 +262,7 @@ function M.load(name)
     return
   end
   if state.load(name) then
-    if state.session.server then
-      state.session.server:broadcast('graph:update', state.session.graph:serialize())
-    end
+    state.broadcast_graph()
     vim.notify('cartograph: loaded map "' .. name .. '"', vim.log.levels.INFO)
   end
 end

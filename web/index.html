@@ -10,17 +10,26 @@
     <header id="toolbar">
       <span class="brand">cartograph</span>
       <input id="search" type="search" placeholder="Search nodes…" autocomplete="off" />
+      <input
+        id="pathfilter"
+        type="search"
+        placeholder="Hide paths (e.g. node_modules, /test/)…"
+        title="Comma-separated path fragments; matching nodes are hidden"
+        autocomplete="off"
+      />
       <button id="fit" title="Fit graph to view">Fit</button>
       <button id="relayout" title="Re-run layout">Layout</button>
+      <button id="labels" title="Toggle node labels" aria-pressed="true">Labels</button>
       <span id="status" class="status" aria-live="polite"></span>
     </header>
+    <section id="filters" title="Toggle layers / kinds"></section>
+    <nav id="breadcrumb" title="Focus path — click a step to rewind"></nav>
     <main id="cy"></main>
     <aside id="choices"></aside>
-    <footer id="legend"></footer>
+    <aside id="detail" aria-live="polite"></aside>
 
-    <script src="/vendor/cytoscape.min.js"></script>
-    <script src="/vendor/dagre.min.js"></script>
-    <script src="/vendor/cytoscape-dagre.min.js"></script>
+    <!-- The renderer and its vendor libraries are loaded on demand by app.js
+         based on the ?renderer param, so we never ship both stacks. -->
     <script src="/app.js"></script>
   </body>
 </html>

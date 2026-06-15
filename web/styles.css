@@ -59,13 +59,24 @@ body {
   letter-spacing: 0.02em;
 }
 
-#search {
+#search,
+#pathfilter {
   flex: 0 1 16rem;
   padding: 0.3rem 0.5rem;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--bg);
   color: var(--text);
+}
+
+#pathfilter {
+  flex: 0 1 18rem;
+}
+
+/* A pressed toggle button (e.g. Labels on). */
+#toolbar button[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 #toolbar button {
@@ -135,24 +146,159 @@ body {
   color: var(--accent);
 }
 
-#legend {
-  display: flex;
+/* Focus/trace breadcrumb: the accumulated node => node => node path. */
+#breadcrumb {
+  display: none;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 0.75rem;
-  padding: 0.4rem 0.75rem;
+  gap: 0.3rem;
+  padding: 0.3rem 0.75rem;
   background: var(--panel);
-  border-top: 1px solid var(--border);
-  font-size: 0.8rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.82rem;
+}
+
+#breadcrumb.open {
+  display: flex;
+}
+
+#breadcrumb .crumb {
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+#breadcrumb .crumb:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+#breadcrumb .crumb-tail {
+  border-color: #fbbf24;
+  color: #92600a;
+  font-weight: 600;
+}
+
+body[data-theme='dark'] #breadcrumb .crumb-tail {
+  color: #fbbf24;
+}
+
+#breadcrumb .crumb-clear {
+  color: var(--muted);
+  font-family: inherit;
+}
+
+#breadcrumb .crumb-sep {
   color: var(--muted);
 }
 
-#legend .swatch {
+/* Node detail panel: kind/file/layer + code snippet, updated on hover. */
+#detail {
+  position: absolute;
+  left: 1rem;
+  bottom: 1rem;
+  max-width: 28rem;
+  display: none;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 24px #00000033;
+  pointer-events: none;
+}
+
+#detail.open {
+  display: flex;
+}
+
+#detail .d-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+
+#detail .d-kind {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--bg);
+  background: var(--muted);
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+}
+
+#detail .d-meta {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  word-break: break-all;
+}
+
+#detail pre {
+  margin: 0.15rem 0 0;
+  padding: 0.5rem;
+  max-height: 12rem;
+  overflow: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  white-space: pre;
+}
+
+/* Filter bar: layer + kind chips that double as the legend. */
+#filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0.35rem 0.75rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+#filters .filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+#filters .filter-group + .filter-group {
+  border-left: 1px solid var(--border);
+  padding-left: 1rem;
+}
+
+.chip {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.78rem;
+  cursor: pointer;
 }
 
-#legend .dot {
+.chip:hover {
+  border-color: var(--accent);
+}
+
+.chip.off {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+.chip .dot {
   width: 0.7rem;
   height: 0.7rem;
   border-radius: 50%;

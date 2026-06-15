@@ -44,12 +44,23 @@ end
 local Server = {}
 Server.__index = Server
 
+-- Write a full response, then close the socket once the write has drained.
+-- Closing must wait for the write callback: uv_close cancels pending writes, so
+-- closing eagerly truncates large bodies (e.g. the ~1.3MB 3D bundle).
 local function respond(client, status, content_type, body)
-  client:write(wire.build_response({
+  if client:is_closing() then
+    return
+  end
+  local payload = wire.build_response({
     status = status,
     headers = { ['Content-Type'] = content_type },
     body = body or '',
-  }))
+  })
+  client:write(payload, function()
+    if not client:is_closing() then
+      client:close()
+    end
+  end)
 end
 
 -- Serve a file from web/, guarding against path traversal.
@@ -159,7 +170,6 @@ function Server:on_connection()
       handled = true
       return vim.schedule(function()
         respond(client, 400, 'text/plain', 'bad request')
-        close()
       end)
     end
 
@@ -169,13 +179,11 @@ function Server:on_connection()
     end
 
     handled = true
-    -- Route on the main loop: handlers touch the engine / editor APIs.
+    -- Route on the main loop: handlers touch the engine / editor APIs. Response
+    -- handlers (respond) close their own socket once the write drains; only an
+    -- upgraded SSE stream is kept open (tracked via sse_ref for EOF cleanup).
     vim.schedule(function()
       sse_ref = self:route(req, client)
-      -- Close everything except the persistent SSE stream.
-      if not sse_ref then
-        close()
-      end
     end)
   end)
 end

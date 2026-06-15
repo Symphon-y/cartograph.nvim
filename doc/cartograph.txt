@@ -67,6 +67,19 @@ override defaults or bind the trigger keymaps.
 :CartographFromCursor   Seed a map from the symbol under the cursor and drill
                         its first in-language hop.
 
+                                                              *:CartographRepo*
+:CartographRepo         Build a force-directed graph of the whole repository:
+                        a node per top-level symbol and a `calls` edge per
+                        resolved call-site, grouped by CLEAN architecture layer.
+                        Symbols and calls come from Treesitter `tags` queries
+                        with name-based resolution (fast and offline, but
+                        approximate). cartograph bundles its own `tags` queries
+                        (queries/), so only the language's parser is required
+                        (:TSInstall <lang>); a missing parser is reported in the
+                        notification. Paths in `repo.ignore` (node_modules,
+                        build output, vendored deps, …) are skipped. The scan
+                        runs asynchronously and is capped at `repo.max_nodes`.
+
                                                           *:CartographEndpoint*
 :CartographEndpoint {q} Seed a map from an HTTP endpoint matched by {q}, e.g.
                         :CartographEndpoint GET /api/validation/validate. Uses
@@ -92,6 +105,14 @@ override defaults or bind the trigger keymaps.
                                                             *:CartographClose*
 :CartographClose        Close the active session.
 
+                                                          *cartograph-focus*
+In the browser, clicking a node focuses it: the node and its children (outgoing
+calls) stay lit while the rest dim. Clicking a child advances the trace and
+reveals its children, accumulating a node => node => node path shown as a
+clickable breadcrumb in the toolbar — click a step to rewind to it, click empty
+space to clear. The toolbar also carries search, a path filter (hide noisy
+paths like node_modules), a Labels toggle (3D), and per-layer/kind filter chips.
+
 ==============================================================================
 5. CONFIGURATION                                            *cartograph-config*
 
@@ -99,7 +120,17 @@ Defaults: >lua
 
   require('cartograph').setup({
     server = { host = '127.0.0.1', port = 0, auto_open = true, token = true },
-    view = { layout = 'dagre', theme = 'auto' },
+    view = { renderer = '3d', layout = 'dagre', theme = 'auto' },
+    clean = {
+      layers = { 'UI', 'Adapters', 'Application', 'Domain', 'Infrastructure' },
+      patterns = { --[[ layer -> { path fragments } ]] },
+      overrides = {}, -- { [lua_pattern_on_path] = layer }
+      kind_fallback = { --[[ node kind -> layer ]] },
+    },
+    repo = {
+      languages = { cs = 'c_sharp', ts = 'typescript', js = 'javascript' },
+      max_nodes = 2000,
+    },
     adapters = { 'dotnet', 'vue' },
     resolvers = { lsp = true, treesitter = true, http = true },
     http = { base_urls = {}, route_overrides = {} },
@@ -111,8 +142,17 @@ Defaults: >lua
   })
 <
 Notable options:
-  view.layout       cytoscape layout passed to the browser ('dagre' default)
+  view.renderer     '3d' (force-directed, default) | '2d' (cytoscape/dagre)
+  view.layout       cytoscape layout passed to the browser, 2d only ('dagre')
   view.theme        'light' | 'dark' | 'auto'
+  clean.layers      ordered layer names; also the 3D plane stacking order
+  clean.patterns    layer -> path fragments deciding a node's layer
+  clean.overrides   { [lua_pattern_on_path] = layer } highest-priority mapping
+  clean.kind_fallback  node kind -> layer when no path matches
+  repo.languages    file extension -> Treesitter language scanned by :CartographRepo
+  repo.max_nodes    cap on nodes in the whole-repo graph
+  repo.ignore       path fragments excluded from the scan (deps, build output,
+                    vendored code); override to taste
   http.base_urls    prefixes stripped from frontend request URLs before
                     matching, e.g. { '/api', 'https://localhost:5001' }
   http.route_overrides  explicit { [frontend_url] = backend_route } links for
@@ -138,19 +178,22 @@ http.route_overrides.
 
 Four layers, so the browser UI can be swapped without touching the engine:
 
-  1. Engine      language-agnostic graph model fed by LSP + Treesitter
+  1. Engine      language-agnostic graph model fed by LSP + Treesitter; CLEAN
+                 layering (layer.lua) and the whole-repo builder (repo.lua)
   2. Adapters    stack-specific route/controller/call-site knowledge
   3. Bridge      pure-Lua vim.uv server, Server-Sent Events to the browser
-  4. Web UI      bundled, offline Cytoscape.js graph
+  4. Web UI      shared shell over a swappable renderer: 3d-force-graph (default,
+                 vendored offline) or Cytoscape/dagre (view.renderer = '2d')
 
 See CARTOGRAPH_PLAN.md for the full design and roadmap.
 
 ==============================================================================
 8. HEALTH                                                   *cartograph-health*
 
-:checkhealth cartograph verifies the required Treesitter parsers, reports
-active LSP clients, checks that a browser launcher is available, confirms the
-bundled web UI assets are present, and that the saved-maps directory is
-writable.
+:checkhealth cartograph verifies the required Treesitter parsers, checks that
+:CartographRepo can resolve a `tags` query for at least one configured language
+(the usual reason a repo scan returns 0 nodes), reports active LSP clients,
+checks that a browser launcher is available, confirms the bundled web UI assets
+are present, and that the saved-maps directory is writable.
 
 vim:tw=78:ts=8:ft=help:norl:

@@ -15,6 +15,10 @@ vim.api.nvim_create_user_command('CartographFromCursor', function()
   require('cartograph').from_cursor()
 end, { desc = 'Map from the symbol under the cursor' })
 
+vim.api.nvim_create_user_command('CartographRepo', function()
+  require('cartograph').repo()
+end, { desc = 'Map the whole repository as a force-directed graph, grouped by CLEAN layer' })
+
 vim.api.nvim_create_user_command('CartographEndpoint', function(opts)
   require('cartograph').from_endpoint(opts.args)
 end, { nargs = 1, desc = 'Map from an HTTP endpoint, e.g. :CartographEndpoint GET /api/x' })

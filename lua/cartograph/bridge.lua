@@ -16,10 +16,10 @@ function M.engine(holder)
   local state = require('cartograph.state')
   local lsp = require('cartograph.resolver.lsp')
 
+  -- Layer-annotate + broadcast lives in state.broadcast_graph (one source of
+  -- truth); holder.server is what state checks via session.server.
   local function push_graph()
-    if holder.server and state.active() then
-      holder.server:broadcast('graph:update', state.session.graph:serialize())
-    end
+    state.broadcast_graph()
   end
 
   local function status(message)
@@ -78,6 +78,26 @@ function M.engine(holder)
 
     reveal = function(node_id)
       require('cartograph.reveal').reveal(node_id)
+    end,
+
+    -- Trace/focus path: advance (or rewind) the selection path through the
+    -- clicked node and re-broadcast the focus overlay. The pure logic lives in
+    -- cartograph.focus; the engine only owns the per-session path state.
+    focus = function(node_id)
+      if not state.active() then
+        return
+      end
+      local prev = state.session.focus and state.session.focus.path or {}
+      state.session.focus = { path = require('cartograph.focus').step(prev, node_id, state.session.graph) }
+      state.broadcast_focus()
+    end,
+
+    clear_focus = function()
+      if not state.active() then
+        return
+      end
+      state.session.focus = nil
+      state.broadcast_focus()
     end,
 
     -- The browser's compare(rootA, rootB) routes to the one implementation in
