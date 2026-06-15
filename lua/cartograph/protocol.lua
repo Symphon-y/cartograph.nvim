@@ -15,6 +15,8 @@ local ROUTES = {
   expand = { method = 'expand', params = { 'nodeId' } },
   compare = { method = 'compare', params = { 'rootA', 'rootB' } },
   reveal = { method = 'reveal', params = { 'nodeId' } },
+  focus = { method = 'focus', params = { 'nodeId' } },
+  clearFocus = { method = 'clear_focus', params = {} },
   save = { method = 'save', params = { 'name' } },
   load = { method = 'load', params = { 'name' } },
 }

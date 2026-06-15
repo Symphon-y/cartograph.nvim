@@ -14,6 +14,8 @@ local function spy_engine()
     expand = record('expand'),
     compare = record('compare'),
     reveal = record('reveal'),
+    focus = record('focus'),
+    clear_focus = record('clear_focus'),
     save = record('save'),
     load = record('load'),
   }
@@ -36,6 +38,16 @@ describe('cartograph.protocol', function()
     assert.are.equal('expand', eng.calls[1].name)
     assert.are.equal('a:1:2', eng.calls[1].args[1])
     assert.are.equal('reveal', eng.calls[2].name)
+  end)
+
+  it('routes focus by nodeId and clearFocus with no params', function()
+    local eng = spy_engine()
+    protocol.dispatch({ action = 'focus', nodeId = 'a:1:2' }, eng)
+    protocol.dispatch({ action = 'clearFocus' }, eng)
+    assert.are.equal('focus', eng.calls[1].name)
+    assert.are.equal('a:1:2', eng.calls[1].args[1])
+    assert.are.equal('clear_focus', eng.calls[2].name)
+    assert.are.equal(0, #eng.calls[2].args)
   end)
 
   it('routes compare with both roots', function()

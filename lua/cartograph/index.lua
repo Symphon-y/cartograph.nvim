@@ -11,13 +11,22 @@ local adapters = {
   require('cartograph.adapters.vue'),
 }
 
--- Directory fragments we never want to scan (build output, deps, vcs).
-local IGNORE = { 'node_modules', '/bin/', '/obj/', '/.git/', '/dist/', '/.deps/' }
+-- Directory fragments we never want to scan (build output, deps, vcs). Used as
+-- the fallback when config hasn't been initialised (e.g. in isolated tests).
+local DEFAULT_IGNORE = { 'node_modules', '/bin/', '/obj/', '/.git/', '/dist/', '/.deps/' }
 
 local cache = nil
 
+-- The active ignore list: config.repo.ignore when available, else the default.
+local function ignore_list()
+  local ok, ignore = pcall(function()
+    return require('cartograph.config').options.repo.ignore
+  end)
+  return (ok and type(ignore) == 'table' and ignore) or DEFAULT_IGNORE
+end
+
 local function ignored(path)
-  for _, frag in ipairs(IGNORE) do
+  for _, frag in ipairs(ignore_list()) do
     if path:find(frag, 1, true) then
       return true
     end
@@ -35,10 +44,11 @@ local function read_file(path)
   return content
 end
 
--- Candidate source files under `root` for the registered adapters.
-function M.scan_files(root)
+-- Candidate source files under `root`. `patterns` defaults to the adapter file
+-- types; callers (e.g. the repo builder) may pass their own glob list.
+function M.scan_files(root, patterns)
   local files = {}
-  for _, pattern in ipairs({ '**/*.cs', '**/*.ts', '**/*.js', '**/*.vue' }) do
+  for _, pattern in ipairs(patterns or { '**/*.cs', '**/*.ts', '**/*.js', '**/*.vue' }) do
     for _, file in ipairs(vim.fn.globpath(root, pattern, false, true)) do
       if not ignored(file) then
         files[#files + 1] = file

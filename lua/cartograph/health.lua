@@ -17,7 +17,11 @@ local h_info = health.info or health.report_info
 local REQUIRED_PARSERS = { 'c_sharp', 'typescript', 'vue' }
 
 local function has_parser(lang)
-  return pcall(vim.treesitter.language.add, lang)
+  local ok, has = pcall(function()
+    return vim.treesitter.language.add and vim.treesitter.language.add(lang)
+      or require('nvim-treesitter.parsers').has_parser(lang)
+  end)
+  return ok and has ~= false
 end
 
 function M.check()
@@ -31,6 +35,44 @@ function M.check()
         { 'Install it with :TSInstall ' .. lang .. ' for full structural resolution' }
       )
     end
+  end
+
+  -- :CartographRepo needs, per language, both a parser AND a resolvable `tags`
+  -- query. nvim-treesitter `main` ships no tags queries, so this is the usual
+  -- reason a repo scan returns 0 nodes — surface it explicitly.
+  h_start('cartograph: repo graph (:CartographRepo)')
+  local repo = require('cartograph.repo')
+  local langs = require('cartograph.config').options.repo.languages or {}
+  local usable, parser_only = {}, {}
+  for _, lang in pairs(langs) do
+    if has_parser(lang) then
+      if repo.tags_query(lang) then
+        usable[lang] = true
+      else
+        parser_only[lang] = true
+      end
+    end
+  end
+  local function sorted_keys(t)
+    local keys = {}
+    for k in pairs(t) do
+      keys[#keys + 1] = k
+    end
+    table.sort(keys)
+    return keys
+  end
+  if next(usable) then
+    h_ok('tags queries resolve for: ' .. table.concat(sorted_keys(usable), ', '))
+  else
+    h_error(':CartographRepo will produce 0 nodes — no language has both a parser and a tags query', {
+      'Install a parser for a language you use, e.g. :TSInstall javascript typescript',
+      'cartograph bundles fallback tags queries, so a parser is usually all that is missing',
+    })
+  end
+  if next(parser_only) then
+    h_warn('parser present but no tags query: ' .. table.concat(sorted_keys(parser_only), ', '), {
+      'These languages will be skipped; add queries/<lang>/tags.scm to map them',
+    })
   end
 
   h_start('cartograph: LSP')
@@ -67,7 +109,17 @@ function M.check()
   h_start('cartograph: bundled web UI')
   local src = debug.getinfo(1, 'S').source:sub(2)
   local plugin_root = vim.fn.fnamemodify(src, ':h:h:h')
-  local assets = { '/web/index.html', '/web/vendor/cytoscape.min.js' }
+  local assets = {
+    '/web/index.html',
+    '/web/app.js',
+    '/web/renderer_3d.js',
+    '/web/renderer_cy.js',
+    '/web/vendor/3d-force-graph.min.js',
+    '/web/vendor/three.module.min.js',
+    '/web/vendor/three.core.min.js',
+    '/web/vendor/three-spritetext.module.js',
+    '/web/vendor/cytoscape.min.js',
+  }
   local missing = false
   for _, rel in ipairs(assets) do
     if vim.fn.filereadable(plugin_root .. rel) ~= 1 then
@@ -76,7 +128,7 @@ function M.check()
     end
   end
   if not missing then
-    h_ok('web UI assets present (Cytoscape vendored offline)')
+    h_ok('web UI assets present (3d-force-graph + Cytoscape vendored offline)')
   end
 
   h_start('cartograph: persistence')

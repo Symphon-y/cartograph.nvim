@@ -2,10 +2,17 @@
 
 Visually trace and compare **code paths** through a codebase. Pick a starting
 point — an HTTP endpoint, or the symbol under your cursor — and cartograph
-renders its connections as an interactive graph you drill into hop by hop
-(`endpoint → controller → action → service/store → type`). Open a second path to
-**compare** two chains side by side, with shared nodes and divergences
-highlighted. Clicking a node jumps your editor to that symbol.
+renders its connections as an interactive **3D force-directed graph** you drill
+into hop by hop (`endpoint → controller → action → service/store → type`). Or map
+the **whole repository** at once with `:CartographRepo`, grouped into CLEAN
+architecture layers. Open a second path to **compare** two chains side by side,
+with shared nodes and divergences highlighted. Clicking a node jumps your editor
+to that symbol.
+
+The graph renders in the browser via a vendored, offline build of
+[3d-force-graph](https://github.com/vasturiano/3d-force-graph) (Three.js +
+d3-force-3d). Prefer the classic 2D Cytoscape/dagre view? Set
+`view.renderer = '2d'`.
 
 The v1 stack is **Vue (TS/JS) ↔ .NET (C#)**, built on a pluggable adapter
 architecture so other stacks can be added later.
@@ -68,6 +75,7 @@ The plugin registers its commands automatically via `plugin/cartograph.lua`. A
 |---|---|
 | `:Cartograph` | Open the map view (`:Cartograph!` to close) |
 | `:CartographFromCursor` | Seed a map from the symbol under the cursor |
+| `:CartographRepo` | Map the whole repository (symbols + calls), grouped by CLEAN layer |
 | `:CartographEndpoint GET /api/x` | Seed a map from an HTTP endpoint (cross-stack) |
 | `:CartographCompare A \| B` | Overlay two paths, highlighting shared vs divergent |
 | `:CartographSave <name>` | Save the active map |
@@ -87,7 +95,35 @@ Defaults (pass overrides to `setup()`):
 ```lua
 require('cartograph').setup({
   server = { host = '127.0.0.1', port = 0, auto_open = true, token = true },
-  view = { layout = 'dagre', theme = 'auto' }, -- 'light' | 'dark' | 'auto'
+  view = {
+    renderer = '3d',     -- '3d' (force-directed) | '2d' (cytoscape/dagre)
+    layout   = 'dagre',  -- cytoscape layout (2d only)
+    theme    = 'auto',   -- 'light' | 'dark' | 'auto'
+  },
+  -- CLEAN-architecture layering: how nodes are coloured/grouped. A node's layer
+  -- is decided by overrides → directory patterns (in `layers` order) →
+  -- kind_fallback. In 3D, layers become stacked horizontal planes.
+  clean = {
+    layers = { 'UI', 'Adapters', 'Application', 'Domain', 'Infrastructure' },
+    patterns = {
+      UI = { '/ui/', '/web/', '/components/', '/pages/' },
+      Adapters = { '/adapters/', '/controllers/', '/api/' },
+      Application = { '/application/', '/usecases/' },
+      Domain = { '/domain/', '/entities/', '/core/' },
+      Infrastructure = { '/infrastructure/', '/persistence/', '/data/' },
+    },
+    overrides = {},        -- { ['legacy/.*'] = 'Infrastructure' }
+    kind_fallback = { controller = 'Adapters', action = 'Application', type = 'Domain' },
+  },
+  -- :CartographRepo — whole-repo symbol/call graph (Treesitter `tags`).
+  repo = {
+    languages = { cs = 'c_sharp', ts = 'typescript', js = 'javascript', lua = 'lua' },
+    max_nodes = 2000,      -- cap to keep huge repos renderable
+    ignore    = {          -- path fragments excluded from the scan
+      'node_modules', '/dist/', '/build/', '/target/', '/vendor/',
+      '/packages/', '/.nuget/', '/.venv/', '/.git/', -- … (see config.lua for the full default)
+    },
+  },
   adapters = { 'dotnet', 'vue' },
   resolvers = { lsp = true, treesitter = true, http = true },
   http = { base_urls = {}, route_overrides = {} },
@@ -98,6 +134,29 @@ require('cartograph').setup({
   },
 })
 ```
+
+The browser toolbar carries **search**, a **path filter** (comma-separated
+fragments — e.g. `node_modules, /test/` — to hide noisy paths without
+rescanning), a **Labels** toggle (3D), and per-**layer**/**kind** filter chips
+(click to hide). Nodes show an always-on label (a kind glyph + name); hovering
+one opens a detail panel with its kind, file:line, layer, language and a code
+snippet. In 3D, clicking a node flies the camera to it.
+
+**Click-to-focus path tracing:** clicking a node highlights it and its
+**children** (outgoing calls) and dims the rest; clicking one of those children
+**advances** the trace, revealing *its* children, and accumulates a
+`node ⇒ node ⇒ node` path shown as a clickable **breadcrumb** in the toolbar
+(click a step to rewind, click empty space to clear). The focus logic is a pure,
+unit-tested engine module (`cartograph.focus`) broadcast as an overlay both
+renderers apply — search, layer/kind filters and focus all compose.
+
+The whole-repo graph is built from Treesitter `tags` queries with name-based
+call resolution — fast and offline, but approximate; precise resolution stays on
+the per-node expand path (LSP). cartograph **bundles its own `tags` queries**
+(under `queries/`) so the scan works even on nvim-treesitter `main`, which ships
+none — you only need the language's parser (`:TSInstall <lang>`). If a parser is
+missing, `:CartographRepo` says which one, and `:checkhealth cartograph` reports
+it. A repo larger than `repo.max_nodes` is truncated with a notice.
 
 ## Architecture
 
@@ -110,7 +169,10 @@ in-Neovim canvas without touching the engine:
    knowledge of routes, controllers, request call-sites.
 3. **Bridge** (`server.lua`, `sse.lua`) — a pure-Lua `vim.uv` server pushing
    graph updates to the browser over Server-Sent Events.
-4. **Web UI** (`web/`) — a bundled, offline Cytoscape.js graph.
+4. **Web UI** (`web/`) — a shared shell (transport, search, filters) over a
+   swappable renderer: `renderer_3d.js` (vendored 3d-force-graph, default) or
+   `renderer_cy.js` (Cytoscape/dagre). Layer grouping is provided by the pure
+   `layer.lua` classifier; the whole-repo graph by `repo.lua`.
 
 See [`CARTOGRAPH_PLAN.md`](CARTOGRAPH_PLAN.md) for the full design and roadmap.
 
